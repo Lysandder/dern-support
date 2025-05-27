@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -126,6 +127,17 @@
                 </div>
             </div>
 
+            <!-- Knowledge Base Section -->
+            <div class="knowledge-base-section">
+                <div class="landing-container">
+                    <h2 class="section-title">Knowledge Base</h2>
+                    <p class="section-description">Find solutions to common technical issues</p>
+                    <div id="public-knowledge-base" class="kb-articles-grid">
+                        <!-- Articles will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
             <!-- CTA Section -->
             <div class="cta-section">
                 <div class="landing-container">
@@ -170,11 +182,10 @@
         <!-- Header -->
         <header class="header">
             <div class="container">
-                <h1 class="logo">Dern-Support</h1>
+                <h1 class="logo" onclick="showLandingPage()" style="cursor: pointer;">Dern-Support</h1>
                 <nav class="nav" id="nav">
                     <a href="#" onclick="showSection('dashboard')" class="nav-link">Dashboard</a>
                     <a href="#" onclick="showSection('support-requests')" class="nav-link">Support Requests</a>
-                    <a href="#" onclick="showSection('knowledge-base')" class="nav-link">Knowledge Base</a>
                     <a href="#" onclick="showSection('inventory')" class="nav-link admin-only"
                         style="display: none;">Inventory</a>
                     <a href="#" onclick="showSection('analytics')" class="nav-link admin-only"
@@ -232,12 +243,15 @@
                                 <option value="">Select account type</option>
                                 <option value="individual">Individual</option>
                                 <option value="business">Business</option>
-                                <option value="admin">Admin</option>
                             </select>
                         </div>
                         <div class="form-group" id="company-field" style="display: none;">
                             <label for="company-name">Company Name:</label>
                             <input type="text" id="company-name">
+                        </div>
+                        <div class="form-group" id="location-field" style="display: none;">
+                            <label for="company-location">Business Location/Address:</label>
+                            <input type="text" id="company-location">
                         </div>
                         <button type="submit" class="btn btn-primary">Register</button>
                     </form>
@@ -254,11 +268,6 @@
                         <h3>My Support Requests</h3>
                         <div class="stat-number" id="user-support-requests-count">0</div>
                         <p>Active support requests</p>
-                    </div>
-                    <div class="dashboard-card">
-                        <h3>Knowledge Base</h3>
-                        <div class="stat-number" id="kb-articles-count">0</div>
-                        <p>Available articles</p>
                     </div>
                     <div class="dashboard-card admin-only" style="display: none;">
                         <h3>Total Support Requests</h3>
@@ -294,16 +303,6 @@
                         <label for="support-request-description">Description:</label>
                         <textarea id="support-request-description" rows="4" required></textarea>
                     </div>
-                    <div class="form-group">
-                        <label for="support-request-schedule">Preferred Time Schedule:</label>
-                        <select id="support-request-schedule" required>
-                            <option value="">Select preferred time</option>
-                            <option value="morning">Morning (8:00 AM - 12:00 PM)</option>
-                            <option value="afternoon">Afternoon (12:00 PM - 5:00 PM)</option>
-                            <option value="evening">Evening (5:00 PM - 8:00 PM)</option>
-                            <option value="anytime">Anytime</option>
-                        </select>
-                    </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Create Support Request</button>
                         <button type="button" class="btn btn-secondary"
@@ -313,48 +312,6 @@
 
                 <!-- Support Requests List -->
                 <div id="support-requests-list" class="support-requests-list"></div>
-            </div>
-        </section>
-
-        <!-- Knowledge Base Section -->
-        <section id="knowledge-base-section" class="section" style="display: none;">
-            <div class="container">
-                <div class="section-header">
-                    <h2>Knowledge Base</h2>
-                    <button class="btn btn-primary admin-only" onclick="showCreateArticleForm()"
-                        style="display: none;">Add New Article</button>
-                </div>
-
-                <!-- Create Article Form (Admin Only) -->
-                <form id="create-article-form" class="form-container admin-only" style="display: none;">
-                    <h3>Create New Article</h3>
-                    <div class="form-group">
-                        <label for="article-title">Title:</label>
-                        <input type="text" id="article-title" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="article-problem">Problem Description:</label>
-                        <textarea id="article-problem" rows="3" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="article-solution">Solution:</label>
-                        <textarea id="article-solution" rows="6" required></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Create Article</button>
-                        <button type="button" class="btn btn-secondary"
-                            onclick="hideCreateArticleForm()">Cancel</button>
-                    </div>
-                </form>
-
-                <!-- Search -->
-                <div class="search-container">
-                    <input type="text" id="kb-search" placeholder="Search for solutions...">
-                    <button class="btn btn-primary" onclick="searchKnowledgeBase()">Search</button>
-                </div>
-
-                <!-- Knowledge Base Articles -->
-                <div id="knowledge-base-list" class="kb-list"></div>
             </div>
         </section>
 
@@ -379,36 +336,10 @@
                 <div id="analytics-content" class="analytics-content"></div>
             </div>
         </section>
-
-        <!-- Edit Article Modal (Admin Only) -->
-        <div id="edit-article-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <span class="close" onclick="hideEditArticleModal()">&times;</span>
-                <h3>Edit Article</h3>
-                <form id="edit-article-form">
-                    <input type="hidden" id="edit-article-id">
-                    <div class="form-group">
-                        <label for="edit-article-title">Title:</label>
-                        <input type="text" id="edit-article-title" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-article-problem">Problem Description:</label>
-                        <textarea id="edit-article-problem" rows="3" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-article-solution">Solution:</label>
-                        <textarea id="edit-article-solution" rows="6" required></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Update Article</button>
-                        <button type="button" class="btn btn-secondary" onclick="hideEditArticleModal()">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 
     <script src="app.js"></script>
 </body>
 
 </html>
+

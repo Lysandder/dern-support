@@ -1,3 +1,4 @@
+
 const express = require("express")
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
@@ -7,7 +8,8 @@ const path = require("path")
 const app = express()
 const PORT = 3000
 const JWT_SECRET = "MyVeryVerySecretKey123456789"
-const MONGODB_URI = "mongodb+srv://eketcum61:U1r9h4aBA5OeXadF@cluster0.p1trykg.mongodb.net/name?retryWrites=true&w=majority&appName=Cluster0"
+const MONGODB_URI =
+  "mongodb+srv://eketcum61:U1r9h4aBA5OeXadF@cluster0.p1trykg.mongodb.net/name?retryWrites=true&w=majority&appName=Cluster0"
 
 // Middleware
 app.use(express.json())
@@ -134,13 +136,14 @@ function requireAdmin(req, res, next) {
 // Auth routes
 app.post("/api/register", async (req, res) => {
   try {
-    const { username, email, password, userType, companyName } = req.body
+    const { username, email, password, userType, companyName, companyLocation } = req.body
 
     if (!username || !email || !password || !userType) {
       return res.status(400).json({ error: "All fields are required" })
     }
 
-    if (!["individual", "business", "admin"].includes(userType)) {
+    // Only allow individual and business registration
+    if (!["individual", "business"].includes(userType)) {
       return res.status(400).json({ error: "Invalid user type" })
     }
 
@@ -163,6 +166,7 @@ app.post("/api/register", async (req, res) => {
       password: hashedPassword,
       userType,
       companyName: userType === "business" ? companyName : null,
+      companyLocation: userType === "business" ? companyLocation : null,
       createdAt: new Date(),
     }
 
@@ -175,7 +179,7 @@ app.post("/api/register", async (req, res) => {
     res.json({
       message: "User registered successfully",
       token,
-      user: { id: userId, username, email, userType, companyName },
+      user: { id: userId, username, email, userType, companyName, companyLocation },
     })
   } catch (error) {
     console.error("Registration error:", error)
@@ -217,6 +221,7 @@ app.post("/api/login", async (req, res) => {
         email: user.email,
         userType: user.userType,
         companyName: user.companyName,
+        companyLocation: user.companyLocation,
       },
     })
   } catch (error) {
@@ -245,20 +250,25 @@ app.get("/api/support-requests", authenticateToken, async (req, res) => {
 
 app.post("/api/support-requests", authenticateToken, async (req, res) => {
   try {
-    const { title, description, schedule } = req.body
+    const { title, description } = req.body
 
     if (!title || !description) {
       return res.status(400).json({ error: "Title and description are required" })
     }
+
+    // Get user details to include company location if business account
+    const user = await db.collection("users").findOne({ _id: new ObjectId(req.user.id) })
 
     const newSupportRequest = {
       userId: new ObjectId(req.user.id),
       username: req.user.username,
       title,
       description,
-      schedule: schedule || null,
+      companyLocation: user.companyLocation || null,
+      companyName: user.companyName || null,
       priority: "medium", // Default priority, only admin can change
       status: "open",
+      schedule: null, // Only admin can set schedule
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -276,7 +286,7 @@ app.post("/api/support-requests", authenticateToken, async (req, res) => {
 app.put("/api/support-requests/:id", authenticateToken, async (req, res) => {
   try {
     const supportRequestId = new ObjectId(req.params.id)
-    const { status, quote, notes, priority } = req.body
+    const { status, quote, notes, priority, schedule } = req.body
 
     const supportRequest = await db.collection("supportRequests").findOne({ _id: supportRequestId })
 
@@ -296,9 +306,10 @@ app.put("/api/support-requests/:id", authenticateToken, async (req, res) => {
     if (quote) updateData.quote = quote
     if (notes) updateData.notes = notes
 
-    // Only admin can change priority
-    if (priority && req.user.userType === "admin") {
-      updateData.priority = priority
+    // Only admin can change priority and schedule
+    if (req.user.userType === "admin") {
+      if (priority) updateData.priority = priority
+      if (schedule) updateData.schedule = schedule
     }
 
     await db.collection("supportRequests").updateOne({ _id: supportRequestId }, { $set: updateData })
@@ -311,7 +322,7 @@ app.put("/api/support-requests/:id", authenticateToken, async (req, res) => {
   }
 })
 
-// Knowledge base routes
+// Knowledge base routes (public access for reading)
 app.get("/api/knowledge-base", async (req, res) => {
   try {
     const knowledgeBase = await db.collection("knowledgeBase").find({}).sort({ createdAt: -1 }).toArray()
@@ -338,75 +349,6 @@ app.get("/api/knowledge-base/search", async (req, res) => {
     res.json(results)
   } catch (error) {
     console.error("Search knowledge base error:", error)
-    res.status(500).json({ error: "Server error" })
-  }
-})
-
-// Knowledge base management (admin only)
-app.post("/api/knowledge-base", authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { title, problem, solution } = req.body
-
-    if (!title || !problem || !solution) {
-      return res.status(400).json({ error: "Title, problem, and solution are required" })
-    }
-
-    const newArticle = {
-      title,
-      problem,
-      solution,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    const result = await db.collection("knowledgeBase").insertOne(newArticle)
-    newArticle._id = result.insertedId
-
-    res.json({ message: "Article created successfully", article: newArticle })
-  } catch (error) {
-    console.error("Create knowledge base article error:", error)
-    res.status(500).json({ error: "Server error" })
-  }
-})
-
-app.put("/api/knowledge-base/:id", authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const articleId = new ObjectId(req.params.id)
-    const { title, problem, solution } = req.body
-
-    const updateData = { updatedAt: new Date() }
-    if (title) updateData.title = title
-    if (problem) updateData.problem = problem
-    if (solution) updateData.solution = solution
-
-    await db.collection("knowledgeBase").updateOne({ _id: articleId }, { $set: updateData })
-
-    const updatedArticle = await db.collection("knowledgeBase").findOne({ _id: articleId })
-
-    if (!updatedArticle) {
-      return res.status(404).json({ error: "Article not found" })
-    }
-
-    res.json({ message: "Article updated successfully", article: updatedArticle })
-  } catch (error) {
-    console.error("Update knowledge base article error:", error)
-    res.status(500).json({ error: "Server error" })
-  }
-})
-
-app.delete("/api/knowledge-base/:id", authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const articleId = new ObjectId(req.params.id)
-
-    const result = await db.collection("knowledgeBase").deleteOne({ _id: articleId })
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ error: "Article not found" })
-    }
-
-    res.json({ message: "Article deleted successfully" })
-  } catch (error) {
-    console.error("Delete knowledge base article error:", error)
     res.status(500).json({ error: "Server error" })
   }
 })
@@ -506,3 +448,4 @@ connectToMongoDB()
     console.error("Failed to start server:", error)
     process.exit(1)
   })
+
